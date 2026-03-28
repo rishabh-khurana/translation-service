@@ -1,0 +1,90 @@
+{
+  // Compiler options - controls how TypeScript compiles your code
+  "compilerOptions": {
+    // OUTPUT LANGUAGE
+    // Target JavaScript version. Specifies which ES version to output.
+    // ES2022 is modern and well-supported by current Node.js LTS versions.
+    // Older targets (ES6, ES2017) give broader compatibility but lose newer features.
+    "target": "ES2022",
+
+    // MODULE SYSTEM
+    // Module format for output. "commonjs" is Node.js's default (uses require/module.exports).
+    // Other options: ESNext, AMD, UMD, System, None.
+    // CommonJS is the standard for Node.js backends.
+    "module": "commonjs",
+
+    // TYPE LIBRARIES
+    // Built-in type definitions to include. "ES2022" gives you types for built-in APIs
+    // like Promise, Map, Set, Array methods, etc. Does NOT include DOM types (window, document).
+    // Remove DOM from the default include to prevent accidentally using browser APIs in Node.js.
+    "lib": ["ES2022"],
+
+    // OUTPUT DIRECTORY
+    // Where compiled JavaScript files are placed. TypeScript preserves the folder structure
+    // from rootDir. In production, you run from this directory.
+    "outDir": "./dist",
+
+    // SOURCE ROOT
+    // The root directory of source files. TypeScript uses this to determine the output
+    // folder structure. Files outside this folder get flattened in output.
+    "rootDir": "./src",
+
+    // STRICT TYPE CHECKING
+    // Enables ALL strict type-checking options. This is highly recommended and keeps you safe.
+    // Equivalent to setting: noImplicitAny, noImplicitThis, strictNullChecks, strictFunctionTypes,
+    // strictPropertyInitialization, noImplicitReturns, noFallthroughCasesInSwitch.
+    // Disabling this defeats much of TypeScript's benefits.
+    "strict": true,
+
+    // ES MODULE INTEROP
+    // Allows default imports from modules that don't have a default export.
+    // Without this: import * as Koa from 'koa'. With this: import Koa from 'koa'.
+    // Fixes many common import issues with CommonJS modules.
+    "esModuleInterop": true,
+
+    // SKIP LIBRARY CHECK
+    // Skip type-checking of declaration files (*.d.ts). This significantly speeds up
+    // compilation because TypeScript won't validate third-party type definitions.
+    // Always safe to enable unless you need to verify your @types packages.
+    "skipLibCheck": true,
+
+    // CONSISTENT CASING
+    // Ensures imported filenames match the exact casing on disk.
+    // Prevents bugs on case-insensitive file systems (Windows, macOS) that break
+    // when deployed to case-sensitive systems (Linux servers).
+    "forceConsistentCasingInFileNames": true,
+
+    // JSON MODULE RESOLUTION
+    // Allows importing .json files directly. Useful for config files, translations, etc.
+    // TypeScript will infer the shape of the JSON and provide type checking.
+    "resolveJsonModule": true,
+
+    // DECLARATION FILES
+    // Generate .d.ts files alongside .js files. These are type definitions that allow
+    // other TypeScript projects to consume your code without needing the .ts source.
+    // Required if you're building a library to publish to npm.
+    "declaration": true,
+
+    // DECLARATION SOURCE MAPS
+    // Generate sourcemaps for .d.ts files. Helps IDEs navigate to the original
+    // type definitions when peeking definitions or debugging.
+    "declarationMap": true,
+
+    // SOURCE MAPS
+    // Generate .map files that map compiled JS back to original TS.
+    // Enables debugging in browser DevTools or Node.js with original source context.
+    // Essential for development, can disable in production for minor performance gain.
+    "sourceMap": true
+  },
+
+  // FILE INCLUSION
+  // Glob patterns for files to include in compilation.
+  // "src/**/*" means all files in src/ and any subdirectories.
+  "include": ["src/**/*"],
+
+  // FILE EXCLUSION
+  // Files to exclude from compilation. These are automatically skipped.
+  // node_modules: never compile third-party code.
+  // dist: don't recompile already compiled output.
+  "exclude": ["node_modules", "dist"]
+}
