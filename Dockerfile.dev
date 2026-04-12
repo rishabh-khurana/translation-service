@@ -1,0 +1,24 @@
+# Development Dockerfile - Simple single-stage build
+# For production, use the multi-stage Dockerfile
+
+FROM node:20.10.0-alpine
+
+# Set working directory to /app (convention, absolute path)
+WORKDIR /app
+
+# Step 1: Copy ONLY package management files first
+# This allows Docker to cache the yarn install layer
+# If package.json/yarn.lock haven't changed, yarn install is skipped
+COPY package.json yarn.lock ./
+
+# Step 2: Install dependencies
+# This layer is cached unless package files change
+RUN yarn install
+
+# Step 3: Copy source code
+# This runs every time source files change, BUT yarn install is cached
+# Without the first COPY, every code change would re-install all deps
+COPY . .
+
+# Start development server with hot reload
+CMD ["yarn", "exec", "nodemon", "src/index.ts"]

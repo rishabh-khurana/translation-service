@@ -5,12 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-yarn dev              # Start development server with nodemon + ts-node
+yarn dev              # create-env + docker compose up (full local stack)
 yarn build            # Compile TypeScript to dist/
 yarn start            # Run compiled production build
 
-yarn db:generate      # Generate Drizzle migrations
-yarn db:migrate       # Run database migrations
+yarn db:push          # Push Drizzle schema to the database
 yarn db:studio        # Open Drizzle Studio GUI
 
 yarn test             # Run all tests
@@ -57,7 +56,7 @@ JWT access tokens (short-lived) + refresh tokens (long-lived), both stateless. `
 
 ### Database (Drizzle + PostgreSQL)
 
-Schema in `src/db/schema.ts`. All schema changes go through migrations (`yarn db:generate` → `yarn db:migrate`). Key tables: `translation_memory` (trigram index on `source_text`), `glossary`, `users`, `supported_languages`.
+Schema in `src/db/schema.ts`. Push schema changes with `yarn db:push`. Key tables: `translation_memory` (trigram index on `source_text`), `glossary`, `users`, `supported_languages`.
 
 ## Implementation Phases
 

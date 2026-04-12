@@ -2,7 +2,7 @@
 
 ## Overview
 
-A self-hosted i18n translation service with Translation Memory (TM), fuzzy matching, glossary enforcement, LibreTranslate as the external translation provider, and JWT-based authentication.
+A self-hosted i18n translation service with Translation Memory (TM), fuzzy matching, Smartling NMT integration (or LibreTranslate for local dev), and JWT-based authentication.
 
 ---
 
@@ -13,7 +13,7 @@ A self-hosted i18n translation service with Translation Memory (TM), fuzzy match
 | Framework | Koa + TypeScript |
 | Database | PostgreSQL + Drizzle ORM |
 | Cache | Redis |
-| Translation API | LibreTranslate |
+| Translation API | Smartling NMT (production) / LibreTranslate (local dev) |
 | Docker | Docker Compose |
 
 ---
@@ -21,20 +21,19 @@ A self-hosted i18n translation service with Translation Memory (TM), fuzzy match
 ## File Structure
 
 ```
-translations-app/
-├── docker-compose.yml
+translations-service/
 ├── package.json
 ├── tsconfig.json
 ├── drizzle.config.ts
+├── docker-compose.yml
 ├── src/
-│   ├── index.ts
-│   ├── app.ts
+│   ├── index.ts           # Entry point
+│   ├── app.ts              # Koa app setup
 │   ├── config/
-│   │   └── env.ts
+│   │   └── env.ts          # Environment config
 │   ├── db/
-│   │   ├── index.ts
-│   │   ├── schema.ts
-│   │   └── migrations/
+│   │   ├── index.ts        # DB connection
+│   │   └── schema.ts       # Drizzle schema
 │   ├── middleware/
 │   │   ├── errorHandler.ts
 │   │   ├── rateLimiter.ts
@@ -42,14 +41,13 @@ translations-app/
 │   ├── routes/
 │   │   ├── auth.ts
 │   │   ├── translate.ts
-│   │   ├── glossary.ts
 │   │   └── memory.ts
 │   ├── services/
 │   │   ├── auth.service.ts
 │   │   ├── translate.service.ts
 │   │   ├── memory.service.ts
-│   │   ├── glossary.service.ts
-│   │   └── libretranslate.service.ts
+│   │   ├── smartling.service.ts
+│   │   └── glossary.service.ts (optional)
 │   └── types/
 │       └── index.ts
 └── tests/
@@ -59,12 +57,15 @@ translations-app/
 
 ## Docker Compose Services
 
+Containerized development environment with all required services.
+
 | Service | Port | Purpose |
 |---------|------|---------|
-| app | 3000 | Koa API |
 | postgres | 5432 | Translation memory DB |
 | redis | 6379 | Caching |
-| libretranslate | 5000 | NMT translation API |
+| libretranslate | 5000 | Local NMT translation API (optional) |
+
+**Note:** All services run via Docker Compose.
 
 ---
 
@@ -83,11 +84,6 @@ translations-app/
 - Configurable match threshold (e.g., 80% similarity)
 - Auto-suggest from memory before calling external API
 
-### Glossary
-- Define term mappings per language pair
-- Force glossary terms in translations
-- Pre/post-processing on translations
-
 ### Fuzzy Matching
 - Levenshtein distance algorithm
 - Configurable similarity threshold
@@ -95,13 +91,20 @@ translations-app/
 
 ### Caching
 - Redis cache for frequent translations
-- Cache key: hash(source_text + target_lang + glossary_version)
+- Cache key: hash(source_text + target_lang)
 - TTL-based expiration
 
-### External Translation (LibreTranslate)
+### External Translation (Smartling/LibreTranslate)
+- Smartling NMT for production environments
+- LibreTranslate for local development
 - Neural machine translation when no TM match found
 - Retry logic with exponential backoff
 - Falls back to local TM before calling external API
+
+### Glossary (Optional Enhancement)
+- Apply glossary pre/post-processing
+- Domain-specific terminology overrides
+- Term consistency enforcement
 
 ---
 
@@ -110,19 +113,14 @@ translations-app/
 ```
 POST   /auth/register          # Register new user
 POST   /auth/login             # Login, returns JWT
-POST   /auth/refresh            # Refresh JWT token
+POST   /auth/refresh           # Refresh JWT token
 
 POST   /translate              # Translate text (uses TM first, then fallback)
-GET    /translate/languages    # Get supported languages
+GET    /translate/languages   # Get supported languages
 
 GET    /memory                 # List TM entries
 POST   /memory                 # Add translation to memory
 DELETE /memory/:id             # Delete TM entry
-
-GET    /glossary               # List glossary terms
-POST   /glossary               # Add glossary term
-PUT    /glossary/:id           # Update glossary term
-DELETE /glossary/:id           # Delete glossary term
 
 GET    /health                 # Health check
 ```
@@ -130,6 +128,24 @@ GET    /health                 # Health check
 ---
 
 ## Database Schema
+
+### Users Table
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SERIAL | PRIMARY KEY |
+| email | VARCHAR(255) | UNIQUE, NOT NULL |
+| password_hash | VARCHAR(255) | NOT NULL |
+| role | VARCHAR(20) | DEFAULT 'user' |
+| created_at | TIMESTAMP | DEFAULT NOW() |
+
+### Refresh Tokens Table
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SERIAL | PRIMARY KEY |
+| user_id | INTEGER | REFERENCES users(id), NOT NULL |
+| token | VARCHAR(500) | NOT NULL |
+| expires_at | TIMESTAMP | NOT NULL |
+| created_at | TIMESTAMP | DEFAULT NOW() |
 
 ### Translation Memory Table
 | Column | Type | Constraints |
@@ -145,28 +161,7 @@ GET    /health                 # Health check
 
 **Indexes:** (source_lang, target_lang), source_text (trigram)
 
-### Glossary Table
-| Column | Type | Constraints |
-|--------|------|-------------|
-| id | SERIAL | PRIMARY KEY |
-| source_term | TEXT | NOT NULL |
-| target_term | TEXT | NOT NULL |
-| source_lang | VARCHAR(10) | NOT NULL |
-| target_lang | VARCHAR(10) | NOT NULL |
-| created_at | TIMESTAMP | DEFAULT NOW() |
-
-**Indexes:** (source_lang, target_lang)
-
-### Users Table
-| Column | Type | Constraints |
-|--------|------|-------------|
-| id | SERIAL | PRIMARY KEY |
-| email | VARCHAR(255) | UNIQUE, NOT NULL |
-| password_hash | VARCHAR(255) | NOT NULL |
-| role | VARCHAR(20) | DEFAULT 'user' |
-| created_at | TIMESTAMP | DEFAULT NOW() |
-
-### Supported Languages Table
+### Supported Languages Table (Optional)
 | Column | Type | Constraints |
 |--------|------|-------------|
 | code | VARCHAR(10) | PRIMARY KEY |
@@ -177,56 +172,87 @@ GET    /health                 # Health check
 ## Implementation Order
 
 ### Phase 1: Foundation
-- Drizzle schema + migrations
 - Basic Koa app with error handling
+- Health check endpoint
+- Environment configuration
+- Drizzle schema setup (users, refreshTokens, translationMemory)
+- Drizzle `db:push` to create tables
 
-### Phase 1.5: Authentication
-- User schema + migrations
-- Auth service with bcrypt + JWT
-- Register/login/refresh endpoints
+### Phase 2: Docker Setup
+- Create `docker-compose.yml` for PostgreSQL + Redis + LibreTranslate
+- Run `docker-compose up -d` to start all services
+- Verify PostgreSQL is accessible on port 5432
+- Verify Redis is accessible on port 6379
+- Configure environment variables for Docker services
+
+### Phase 3: Authentication
+- Add `refreshTokens` table to schema
+- Implement auth service (register/login/refresh)
+- Password hashing with bcrypt
+- JWT token generation/validation
 - Auth middleware for protected routes
+- Auth routes (`/auth/register`, `/auth/login`, `/auth/refresh`)
 
-### Phase 2: Docker & Infrastructure
-- Docker Compose (PostgreSQL + Redis + LibreTranslate + app)
-- Environment configuration for containerized setup
-
-### Phase 3: Translation Memory
-- CRUD for TM entries
-- Fuzzy matching algorithm
+### Phase 4: Translation Memory
+- CRUD endpoints for TM entries
+- Fuzzy matching algorithm (Levenshtein distance)
 - Memory lookup before external calls
-
-### Phase 4: Glossary
-- CRUD for glossary terms
-- Pre-processing: replace known terms before translation
-- Post-processing: enforce glossary in output
+- Configurable match threshold
+- TM routes (`/memory`, `GET /memory/:id`, `POST /memory`, `DELETE /memory/:id`)
 
 ### Phase 5: Translation Flow
-- Translation flow: Local TM → Smartling NMT → Cache & Return
-- Glossary pre/post-processing at each step
+- Integration with Smartling NMT API (production)
+- OR LibreTranslate API (local dev)
+- Translation flow: Local TM → NMT → Cache & Return
 - Response format with match confidence
-- Store Smartling results in local TM
+- Store results in local TM
+- Translation routes (`/translate`, `GET /translate/languages`)
 
-### Phase 6: Caching & Polish
-- Redis caching layer
-- Rate limiting
-- Health checks
+### Phase 6: Caching & Performance
+- Redis caching layer for translations
+- Rate limiting middleware
+- Performance optimizations
+- Health check enhancements
+- Production readiness
+
+### Future Enhancements
+- Glossary management and pre/post-processing
+- Rate limiting per user/api key
+- Admin dashboard
+- Batch translation support
+- Webhook notifications
 
 ---
 
 ## Environment Variables
 
-```
+```bash
+# Core
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/translations
 REDIS_URL=redis://localhost:6379
-LIBRETRANSLATE_URL=http://localhost:5000
-LIBRETRANSLATE_API_KEY=optional
 PORT=3000
 NODE_ENV=development
-FUZZY_THRESHOLD=0.8
-CACHE_TTL=86400
-JWT_SECRET=your-jwt-secret-key
+
+# Auth
+JWT_SECRET=your-jwt-secret-key-change-in-production
 JWT_EXPIRES_IN=7d
 JWT_REFRESH_EXPIRES_IN=30d
+
+# Fuzzy Matching
+FUZZY_THRESHOLD=0.8
+
+# Caching
+CACHE_TTL=86400
+
+# Translation API (Production)
+SMARTLING_API_URL=https://api.smartling.com
+SMARTLING_USER_IDENTIFIER=<your-id>
+SMARTLING_USER_SECRET=<your-secret>
+SMARTLING_PROJECT_ID=<your-project-id>
+
+# Translation API (Local Dev)
+LIBRETRANSLATE_URL=http://localhost:5000
+LIBRETRANSLATE_API_KEY=optional
 ```
 
 ---
@@ -235,11 +261,44 @@ JWT_REFRESH_EXPIRES_IN=30d
 
 | Concept | Implementation |
 |---------|----------------|
+| Database Schema | Drizzle ORM with `db:push` (no migration files) |
 | Authentication | JWT tokens with refresh flow |
 | Translation Memory | Database storage + fuzzy matching |
 | Fuzzy Matching | Levenshtein distance algorithm |
-| Glossary | Term replacement pipeline |
-| External API Integration | LibreTranslate NMT with retry |
+| External API Integration | Smartling NMT (prod) / LibreTranslate (dev) |
 | Redis Caching | Translation cache |
 | Rate Limiting | Sliding window |
 | Middleware Patterns | Error handling, logging |
+
+---
+
+## Local Development Setup
+
+### Docker Compose (Required)
+All services run via Docker Compose:
+
+```bash
+# Start all services
+docker-compose up -d
+
+# Verify PostgreSQL is running
+docker-compose exec postgres pg_isready
+
+# Verify Redis is running
+docker-compose exec redis redis-cli ping
+
+# View logs
+docker-compose logs -f
+
+# Stop all services
+docker-compose down
+```
+
+---
+
+## Notes
+
+- All new code must be TypeScript with strict typing
+- Write unit tests alongside features
+- Use `drizzle-kit push` instead of migrations for simplicity
+- Docker Compose manages all development dependencies

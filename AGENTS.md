@@ -7,21 +7,18 @@ This is a Koa + TypeScript translation service with PostgreSQL (Drizzle ORM), Re
 ## Build Commands
 
 ```bash
-npm install              # Install dependencies
-npm run dev             # Start development server (nodemon)
-npm run build           # Compile TypeScript to dist/
-npm run start           # Run production build
-npm run db:generate     # Generate Drizzle migrations
-npm run db:migrate      # Run database migrations
-npm run db:studio       # Open Drizzle Studio (database GUI)
-docker-compose up -d    # Start PostgreSQL + Redis containers
+yarn install            # Install dependencies
+yarn dev                # create-env + docker compose up (full local stack)
+yarn build              # Compile TypeScript to dist/
+yarn start              # Run production build
+yarn db:push            # Push schema changes to database (no migration files)
+yarn db:studio          # Open Drizzle Studio (database GUI)
 ```
 
 ## Testing
 
 ```bash
-npm test                # Run all tests
-npm test -- --single    # Run single test file (works with jest/vitest)
+yarn test               # Run all tests
 npx vitest run path/to/test.ts  # Run specific test with vitest
 ```
 
@@ -68,7 +65,7 @@ import { TranslationService } from '@/services/translate.service';
 
 ### Database (Drizzle)
 - Define schema in `src/db/schema.ts`
-- Use migrations for all schema changes
+- Use `db:push` for schema changes (no migration files)
 - Prefer explicit column types over inferred
 - Add indexes for frequently queried columns
 
@@ -88,16 +85,15 @@ src/
 ├── config/env.ts      # Environment config
 ├── db/
 │   ├── index.ts       # DB connection
-│   ├── schema.ts     # Drizzle schema
-│   └── migrations/   # Generated migrations
+│   └── schema.ts      # Drizzle schema
 ├── middleware/        # Koa middleware (auth, error, rate-limit)
 ├── routes/            # Route handlers
 ├── services/          # Business logic
 │   ├── auth.service.ts
 │   ├── translate.service.ts
 │   ├── memory.service.ts
-│   ├── glossary.service.ts
-│   └── smartling.service.ts
+│   ├── smartling.service.ts
+│   └── glossary.service.ts (optional)
 └── types/             # Shared TypeScript types
 ```
 
@@ -146,7 +142,8 @@ SMARTLING_PROJECT_ID=<id>
 
 ## Notes
 
-- No existing code yet; start implementation following PLAN.md phases
-- Use Docker Compose for local dev (postgres + redis)
+- Start implementation following PLAN.md phases
+- Use direct PostgreSQL/Redis install (Homebrew) OR Docker Compose for local dev
 - All new code must be TypeScript with strict typing
 - Write unit tests alongside features
+- Use `db:push` for schema changes instead of migrations
