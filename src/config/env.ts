@@ -20,5 +20,4 @@ export const env = {
   cacheTtl: parseInt(process.env.CACHE_TTL || '86400', 10),
   jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
 };

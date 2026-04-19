@@ -35,7 +35,7 @@ When designing authentication systems, there are two primary architectural appro
 
 #### Trade-offs Accepted:
 
-- **Token Revocation**: Requires token blacklisting or short expiry times (handled via refresh token rotation)
+- **Token Revocation**: Harder to revoke tokens immediately (addressed with reasonable expiry times; client deletes token on logout)
 - **Token Size**: Slightly larger request headers (mitigated by minimal JWT payload)
 - **No Instant Logout**: Cannot immediately invalidate all user sessions server-side (addressed with token expiry strategy)
 
@@ -44,12 +44,11 @@ When designing authentication systems, there are two primary architectural appro
 ### In Scope
 
 - User registration and login with hashed passwords.
-- Access and refresh token issuance (stateless JWTs).
+- Single long-lived stateless JWT token issuance.
 - Token expiry-based session management (no server-side storage).
 - Auth middleware for protected endpoints.
 - Role-aware authorization guard (`admin`, `user`).
 - Auth-focused testing across service and route layers.
-- Client-side logout (token deletion).
 
 ### Out of Scope
 
@@ -91,42 +90,36 @@ When designing authentication systems, there are two primary architectural appro
 
 #### Tasks
 
-- Set up JWT configuration (env vars for access + refresh token expiry/secret)
-- Set up JWT token generation (access + refresh tokens with signed payloads)
+- Set up JWT configuration (env var for token expiry/secret)
+- Set up JWT token generation (single long-lived token with signed payload)
 - Implement `login` service function (validate credentials)
 - Create `POST /auth/login` route
-- Implement `refresh` service function for token rotation (stateless - no DB storage)
-- Create `POST /auth/refresh` route
-- Write unit tests for token creation/verification and rotation
-- Write integration tests for login and refresh flows
+- Write unit tests for token creation/verification
+- Write integration tests for login flow
 
 #### Success Criteria
 
 - Users can login with valid credentials
 - Invalid credentials return consistent error messages
-- Access and refresh tokens are issued on successful login (stateless JWTs)
-- Refresh token rotation issues new token pair (old tokens naturally expire)
-- Expired/invalid refresh tokens are rejected via JWT validation
+- Single long-lived JWT token issued on successful login
+- Expired/invalid tokens are rejected via JWT validation
 
 ---
 
-### Sub-Phase 3.3: Logout & Middleware (`/auth/logout`)
+### Sub-Phase 3.3: Middleware & Protection
 
 **Dependencies:** Sub-Phase 3.2 complete (JWT token generation)
-**Goal:** Enable client-side session termination and protect routes with authentication
+**Goal:** Protect routes with JWT authentication
 
 #### Tasks
 
-- Implement `logout` endpoint (client-side token deletion acknowledgment)
-- Create `POST /auth/logout` route
-- Create `authenticate` middleware (validate access tokens via JWT signature)
+- Create `authenticate` middleware (validate tokens via JWT signature)
 - Create `requireRole` middleware (admin/user role guards)
-- Write tests for logout and middleware behavior
+- Write tests for middleware behavior
 - Write integration tests for protected routes and role-based access
 
 #### Success Criteria
 
-- Logout endpoint acknowledges session termination (client deletes tokens)
 - Authenticate middleware validates bearer tokens via JWT signature and attaches user claims
 - Protected routes return 401 without valid token
 - Role guard returns 403 when user role is insufficient
@@ -144,14 +137,12 @@ When designing authentication systems, there are two primary architectural appro
   - bcrypt `password_hash`,
   - role (`user` default, `admin` allowed),
   - timestamps.
-- **No refresh token table** - tokens are stateless JWTs with embedded expiry claims
+- **Single token design** - one long-lived stateless JWT; no refresh token table needed
 
 ### Service Layer
 
-- `register`: create user with hashed password, issue initial token pair.
-- `login`: validate credentials and issue stateless JWT token pair.
-- `refresh`: validate refresh token signature/expiry, issue new token pair (stateless rotation).
-- `logout`: acknowledge logout (client responsible for token deletion).
+- `register`: create user with hashed password, issue single long-lived JWT.
+- `login`: validate credentials and issue single long-lived JWT.
 
 ### Middleware
 
@@ -162,14 +153,11 @@ When designing authentication systems, there are two primary architectural appro
 
 - `POST /auth/register`
 - `POST /auth/login`
-- `POST /auth/refresh`
-- `POST /auth/logout` (recommended for explicit token revocation)
 
 ## Security Requirements
 
 - Hash passwords with bcrypt before storage.
-- Use short-lived access tokens (15-30 minutes) and longer-lived refresh tokens (7-30 days).
-- Rotate refresh tokens on each successful refresh (stateless - old tokens naturally expire).
+- Use reasonably long-lived JWT tokens (7-30 days) for stateless authentication.
 - Never expose `password_hash` or sensitive token internals in API responses.
 - Avoid logging plaintext passwords or raw tokens.
 - Use consistent invalid-credential responses to reduce user enumeration risk.
@@ -198,8 +186,7 @@ Success (`201`):
     "email": "user@example.com",
     "role": "user"
   },
-  "accessToken": "<jwt>",
-  "refreshToken": "<jwt>"
+  "token": "<jwt>"
 }
 ```
 
@@ -215,43 +202,6 @@ Request:
 ```
 
 Success (`200`): same response shape as register.
-
-### `POST /auth/refresh`
-
-Request:
-
-```json
-{
-  "refreshToken": "<jwt>"
-}
-```
-
-Success (`200`):
-
-```json
-{
-  "accessToken": "<jwt>",
-  "refreshToken": "<jwt>"
-}
-```
-
-### `POST /auth/logout`
-
-Request:
-
-```json
-{
-  "refreshToken": "<jwt>"
-}
-```
-
-Success (`200`):
-
-```json
-{
-  "success": true
-}
-```
 
 ### Error Shape
 
@@ -269,17 +219,15 @@ Success (`200`):
 ### Unit Tests
 
 - Password hashing and verification behavior.
-- Access/refresh token creation, signing, and verification.
+- JWT token creation, signing, and verification.
 - Duplicate email rejection on register.
 - Invalid credential rejection on login.
-- Refresh token rotation issues new valid token pair.
 - JWT expiry validation (expired tokens rejected).
 
 ### Integration Tests
 
 - `POST /auth/register` success and validation failures.
 - `POST /auth/login` success and wrong password handling.
-- `POST /auth/refresh` success and expired token rejection.
 - Protected route behavior:
   - 401 without token,
   - 401 with invalid token,
@@ -287,14 +235,12 @@ Success (`200`):
   - success with valid token.
 - Role guard behavior:
   - 403 when role is insufficient.
-- Logout endpoint acknowledges session termination.
 
 ## Acceptance Criteria
 
 - Auth routes are implemented and wired.
 - Passwords are never stored in plaintext.
-- Stateless access/refresh token flow works end-to-end.
-- Refresh token rotation issues new token pair on each refresh.
+- Single long-lived stateless JWT token flow works end-to-end.
 - Auth middleware correctly validates JWT signatures and protects secured routes.
 - Core unit and integration tests pass for happy and failure paths.
 - `PLAN.md` points to this detailed auth phase plan.

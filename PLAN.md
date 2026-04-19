@@ -77,7 +77,7 @@ Containerized development environment with all required services.
 
 ### Authentication
 
-- JWT-based authentication with access + refresh tokens
+- JWT-based authentication with single long-lived token
 - Password hashing with bcrypt
 - Token validation middleware for protected routes
 - Role-based access (admin, user)
@@ -123,7 +123,6 @@ Containerized development environment with all required services.
 ```
 POST   /auth/register          # Register new user
 POST   /auth/login             # Login, returns JWT
-POST   /auth/refresh           # Refresh JWT token
 
 POST   /translate              # Translate text (uses TM first, then fallback)
 GET    /translate/languages   # Get supported languages
@@ -149,18 +148,6 @@ GET    /health                 # Health check
 | password_hash | VARCHAR(255) | NOT NULL         |
 | role          | VARCHAR(20)  | DEFAULT 'user'   |
 | created_at    | TIMESTAMP    | DEFAULT NOW()    |
-
-
-### Refresh Tokens Table
-
-
-| Column     | Type         | Constraints                    |
-| ---------- | ------------ | ------------------------------ |
-| id         | SERIAL       | PRIMARY KEY                    |
-| user_id    | INTEGER      | REFERENCES users(id), NOT NULL |
-| token      | VARCHAR(500) | NOT NULL                       |
-| expires_at | TIMESTAMP    | NOT NULL                       |
-| created_at | TIMESTAMP    | DEFAULT NOW()                  |
 
 
 ### Translation Memory Table
@@ -198,7 +185,7 @@ GET    /health                 # Health check
 - Basic Koa app with error handling
 - Health check endpoint
 - Environment configuration
-- Drizzle schema setup (users, refreshTokens, translationMemory)
+- Drizzle schema setup (users, translationMemory)
 - Drizzle `db:push` to create tables
 
 ### Phase 2: Docker Setup
@@ -260,7 +247,6 @@ NODE_ENV=development
 # Auth
 JWT_SECRET=your-jwt-secret-key-change-in-production
 JWT_EXPIRES_IN=7d
-JWT_REFRESH_EXPIRES_IN=30d
 
 # Fuzzy Matching
 FUZZY_THRESHOLD=0.8
@@ -287,7 +273,7 @@ LIBRETRANSLATE_API_KEY=optional
 | Concept                  | Implementation                                  |
 | ------------------------ | ----------------------------------------------- |
 | Database Schema          | Drizzle ORM with `db:push` (no migration files) |
-| Authentication           | JWT tokens with refresh flow                    |
+| Authentication           | Single long-lived JWT token (stateless)         |
 | Translation Memory       | Database storage + fuzzy matching               |
 | Fuzzy Matching           | Levenshtein distance algorithm                  |
 | External API Integration | Smartling NMT (prod) / LibreTranslate (dev)     |

@@ -52,7 +52,7 @@ src/
 
 ### Auth
 
-JWT access tokens (short-lived) + refresh tokens (long-lived), both stateless. `src/middleware/auth.ts` validates `Bearer` tokens. Passwords hashed with bcrypt. Roles: `admin`, `user`.
+Single long-lived stateless JWT token. `src/middleware/auth.ts` validates `Bearer` tokens. Passwords hashed with bcrypt. Roles: `admin`, `user`.
 
 ### Database (Drizzle + PostgreSQL)
 
@@ -72,8 +72,7 @@ LIBRETRANSLATE_API_KEY=   # optional
 PORT=3000
 NODE_ENV=development
 JWT_SECRET=
-JWT_EXPIRES_IN=15m
-JWT_REFRESH_EXPIRES_IN=30d
+JWT_EXPIRES_IN=7d
 FUZZY_THRESHOLD=0.8
 CACHE_TTL=86400
 ```
