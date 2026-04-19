@@ -21,4 +21,5 @@ RUN yarn install
 COPY . .
 
 # Start development server with hot reload
-CMD ["yarn", "exec", "nodemon", "src/index.ts"]
+# First push database schema, then start the app
+CMD ["sh", "-c", "yarn exec drizzle-kit push:pg && yarn exec nodemon src/index.ts"]

@@ -6,7 +6,7 @@
     "dev": "node scripts/create-env.js && docker compose up",
     "build": "tsc",
     "start": "node dist/index.js",
-    "db:push": "drizzle-kit push",
+    "db:push": "drizzle-kit push:pg",
     "db:studio": "drizzle-kit studio",
     "test": "vitest"
   },
