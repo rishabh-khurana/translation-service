@@ -8,13 +8,15 @@ A self-hosted i18n translation service with Translation Memory (TM), fuzzy match
 
 ## Tech Stack
 
-| Component | Tool |
-|-----------|------|
-| Framework | Koa + TypeScript |
-| Database | PostgreSQL + Drizzle ORM |
-| Cache | Redis |
+
+| Component       | Tool                                                    |
+| --------------- | ------------------------------------------------------- |
+| Framework       | Koa + TypeScript                                        |
+| Database        | PostgreSQL + Drizzle ORM                                |
+| Cache           | Redis                                                   |
 | Translation API | Smartling NMT (production) / LibreTranslate (local dev) |
-| Docker | Docker Compose |
+| Docker          | Docker Compose                                          |
+
 
 ---
 
@@ -59,11 +61,13 @@ translations-service/
 
 Containerized development environment with all required services.
 
-| Service | Port | Purpose |
-|---------|------|---------|
-| postgres | 5432 | Translation memory DB |
-| redis | 6379 | Caching |
+
+| Service        | Port | Purpose                              |
+| -------------- | ---- | ------------------------------------ |
+| postgres       | 5432 | Translation memory DB                |
+| redis          | 6379 | Caching                              |
 | libretranslate | 5000 | Local NMT translation API (optional) |
+
 
 **Note:** All services run via Docker Compose.
 
@@ -72,29 +76,34 @@ Containerized development environment with all required services.
 ## Core Features
 
 ### Authentication
-- JWT-based authentication with access + refresh tokens
+
+- JWT-based authentication with single long-lived token
 - Password hashing with bcrypt
 - Token validation middleware for protected routes
 - Role-based access (admin, user)
 - Secure password storage
 
 ### Translation Memory (TM)
+
 - Store all translations with source text, target text, language pair
 - Fuzzy matching using Levenshtein distance
 - Configurable match threshold (e.g., 80% similarity)
 - Auto-suggest from memory before calling external API
 
 ### Fuzzy Matching
+
 - Levenshtein distance algorithm
 - Configurable similarity threshold
 - Return match percentage with suggestions
 
 ### Caching
+
 - Redis cache for frequent translations
 - Cache key: hash(source_text + target_lang)
 - TTL-based expiration
 
 ### External Translation (Smartling/LibreTranslate)
+
 - Smartling NMT for production environments
 - LibreTranslate for local development
 - Neural machine translation when no TM match found
@@ -102,6 +111,7 @@ Containerized development environment with all required services.
 - Falls back to local TM before calling external API
 
 ### Glossary (Optional Enhancement)
+
 - Apply glossary pre/post-processing
 - Domain-specific terminology overrides
 - Term consistency enforcement
@@ -113,7 +123,6 @@ Containerized development environment with all required services.
 ```
 POST   /auth/register          # Register new user
 POST   /auth/login             # Login, returns JWT
-POST   /auth/refresh           # Refresh JWT token
 
 POST   /translate              # Translate text (uses TM first, then fallback)
 GET    /translate/languages   # Get supported languages
@@ -130,70 +139,69 @@ GET    /health                 # Health check
 ## Database Schema
 
 ### Users Table
-| Column | Type | Constraints |
-|--------|------|-------------|
-| id | SERIAL | PRIMARY KEY |
-| email | VARCHAR(255) | UNIQUE, NOT NULL |
-| password_hash | VARCHAR(255) | NOT NULL |
-| role | VARCHAR(20) | DEFAULT 'user' |
-| created_at | TIMESTAMP | DEFAULT NOW() |
 
-### Refresh Tokens Table
-| Column | Type | Constraints |
-|--------|------|-------------|
-| id | SERIAL | PRIMARY KEY |
-| user_id | INTEGER | REFERENCES users(id), NOT NULL |
-| token | VARCHAR(500) | NOT NULL |
-| expires_at | TIMESTAMP | NOT NULL |
-| created_at | TIMESTAMP | DEFAULT NOW() |
+
+| Column        | Type         | Constraints      |
+| ------------- | ------------ | ---------------- |
+| id            | SERIAL       | PRIMARY KEY      |
+| email         | VARCHAR(255) | UNIQUE, NOT NULL |
+| password_hash | VARCHAR(255) | NOT NULL         |
+| role          | VARCHAR(20)  | DEFAULT 'user'   |
+| created_at    | TIMESTAMP    | DEFAULT NOW()    |
+
 
 ### Translation Memory Table
-| Column | Type | Constraints |
-|--------|------|-------------|
-| id | SERIAL | PRIMARY KEY |
-| source_text | TEXT | NOT NULL |
-| target_text | TEXT | NOT NULL |
-| source_lang | VARCHAR(10) | NOT NULL |
-| target_lang | VARCHAR(10) | NOT NULL |
-| usage_count | INTEGER | DEFAULT 0 |
-| created_at | TIMESTAMP | DEFAULT NOW() |
-| updated_at | TIMESTAMP | DEFAULT NOW() |
+
+
+| Column      | Type        | Constraints   |
+| ----------- | ----------- | ------------- |
+| id          | SERIAL      | PRIMARY KEY   |
+| source_text | TEXT        | NOT NULL      |
+| target_text | TEXT        | NOT NULL      |
+| source_lang | VARCHAR(10) | NOT NULL      |
+| target_lang | VARCHAR(10) | NOT NULL      |
+| usage_count | INTEGER     | DEFAULT 0     |
+| created_at  | TIMESTAMP   | DEFAULT NOW() |
+| updated_at  | TIMESTAMP   | DEFAULT NOW() |
+
 
 **Indexes:** (source_lang, target_lang), source_text (trigram)
 
 ### Supported Languages Table (Optional)
-| Column | Type | Constraints |
-|--------|------|-------------|
-| code | VARCHAR(10) | PRIMARY KEY |
-| name | VARCHAR(100) | NOT NULL |
+
+
+| Column | Type         | Constraints |
+| ------ | ------------ | ----------- |
+| code   | VARCHAR(10)  | PRIMARY KEY |
+| name   | VARCHAR(100) | NOT NULL    |
+
 
 ---
 
 ## Implementation Order
 
-### Phase 1: Foundation
+### Phase 1: Foundation ✅
+
 - Basic Koa app with error handling
 - Health check endpoint
 - Environment configuration
-- Drizzle schema setup (users, refreshTokens, translationMemory)
+- Drizzle schema setup (users, translationMemory)
 - Drizzle `db:push` to create tables
 
-### Phase 2: Docker Setup
+### Phase 2: Docker Setup ✅
+
 - Create `docker-compose.yml` for PostgreSQL + Redis + LibreTranslate
 - Run `docker-compose up -d` to start all services
 - Verify PostgreSQL is accessible on port 5432
 - Verify Redis is accessible on port 6379
 - Configure environment variables for Docker services
 
-### Phase 3: Authentication
-- Add `refreshTokens` table to schema
-- Implement auth service (register/login/refresh)
-- Password hashing with bcrypt
-- JWT token generation/validation
-- Auth middleware for protected routes
-- Auth routes (`/auth/register`, `/auth/login`, `/auth/refresh`)
+### Phase 3: Authentication ✅
+
+- Authentication phase details moved to: `plans/phase-3-auth.md`
 
 ### Phase 4: Translation Memory
+
 - CRUD endpoints for TM entries
 - Fuzzy matching algorithm (Levenshtein distance)
 - Memory lookup before external calls
@@ -201,6 +209,7 @@ GET    /health                 # Health check
 - TM routes (`/memory`, `GET /memory/:id`, `POST /memory`, `DELETE /memory/:id`)
 
 ### Phase 5: Translation Flow
+
 - Integration with Smartling NMT API (production)
 - OR LibreTranslate API (local dev)
 - Translation flow: Local TM → NMT → Cache & Return
@@ -209,6 +218,7 @@ GET    /health                 # Health check
 - Translation routes (`/translate`, `GET /translate/languages`)
 
 ### Phase 6: Caching & Performance
+
 - Redis caching layer for translations
 - Rate limiting middleware
 - Performance optimizations
@@ -216,6 +226,7 @@ GET    /health                 # Health check
 - Production readiness
 
 ### Future Enhancements
+
 - Glossary management and pre/post-processing
 - Rate limiting per user/api key
 - Admin dashboard
@@ -236,7 +247,6 @@ NODE_ENV=development
 # Auth
 JWT_SECRET=your-jwt-secret-key-change-in-production
 JWT_EXPIRES_IN=7d
-JWT_REFRESH_EXPIRES_IN=30d
 
 # Fuzzy Matching
 FUZZY_THRESHOLD=0.8
@@ -259,22 +269,25 @@ LIBRETRANSLATE_API_KEY=optional
 
 ## Concepts Covered
 
-| Concept | Implementation |
-|---------|----------------|
-| Database Schema | Drizzle ORM with `db:push` (no migration files) |
-| Authentication | JWT tokens with refresh flow |
-| Translation Memory | Database storage + fuzzy matching |
-| Fuzzy Matching | Levenshtein distance algorithm |
-| External API Integration | Smartling NMT (prod) / LibreTranslate (dev) |
-| Redis Caching | Translation cache |
-| Rate Limiting | Sliding window |
-| Middleware Patterns | Error handling, logging |
+
+| Concept                  | Implementation                                  |
+| ------------------------ | ----------------------------------------------- |
+| Database Schema          | Drizzle ORM with `db:push` (no migration files) |
+| Authentication           | Single long-lived JWT token (stateless)         |
+| Translation Memory       | Database storage + fuzzy matching               |
+| Fuzzy Matching           | Levenshtein distance algorithm                  |
+| External API Integration | Smartling NMT (prod) / LibreTranslate (dev)     |
+| Redis Caching            | Translation cache                               |
+| Rate Limiting            | Sliding window                                  |
+| Middleware Patterns      | Error handling, logging                         |
+
 
 ---
 
 ## Local Development Setup
 
 ### Docker Compose (Required)
+
 All services run via Docker Compose:
 
 ```bash
@@ -302,3 +315,4 @@ docker-compose down
 - Write unit tests alongside features
 - Use `drizzle-kit push` instead of migrations for simplicity
 - Docker Compose manages all development dependencies
+

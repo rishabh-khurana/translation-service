@@ -102,7 +102,7 @@ src/
 ## Key Patterns
 
 ### JWT Auth
-- Access tokens (short expiry) + refresh tokens (long expiry)
+- Single long-lived JWT token (stateless)
 - Passwords hashed with bcrypt
 - Middleware validates Bearer token on protected routes
 
@@ -129,7 +129,6 @@ PORT=3000
 NODE_ENV=development
 JWT_SECRET=<secret>
 JWT_EXPIRES_IN=7d
-JWT_REFRESH_EXPIRES_IN=30d
 FUZZY_THRESHOLD=0.8
 CACHE_TTL=86400
 SMARTLING_API_URL=https://api.smartling.com

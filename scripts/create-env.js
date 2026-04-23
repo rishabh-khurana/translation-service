@@ -24,8 +24,7 @@ LIBRETRANSLATE_API_KEY=
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB=translations
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/translations
-DATABASE_URL_DOCKER=postgresql://postgres:postgres@postgres:5432/translations
+DATABASE_URL=postgresql://postgres:postgres@postgres:5432/translations
 `;
 
 fs.writeFileSync(envPath, template);
