@@ -113,6 +113,14 @@ router.post("/auth/login", async (ctx: LoginContext) => {
   ctx.body = authSuccess(token, { id: user.id, email: user.email });
 });
 
+// kicks of the translation method
+// string match for an exiting string that has already been translated
+// returns a process Id for the translation
+router.post("/translate", (ctx) => {
+  const { headers } = ctx.request;
+  // TODO: implement the translation service to do the translation
+});
+
 app.use(router.routes());
 app.use(router.allowedMethods());
 

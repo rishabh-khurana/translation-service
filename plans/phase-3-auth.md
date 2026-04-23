@@ -47,7 +47,6 @@ When designing authentication systems, there are two primary architectural appro
 - Single long-lived stateless JWT token issuance.
 - Token expiry-based session management (no server-side storage).
 - Auth middleware for protected endpoints.
-- Role-aware authorization guard (`admin`, `user`).
 - Auth-focused testing across service and route layers.
 
 ### Out of Scope
@@ -55,76 +54,88 @@ When designing authentication systems, there are two primary architectural appro
 - OAuth/SSO providers.
 - Password reset/email verification flows.
 - API key-based authentication.
+- Role-based access control (no admin role needed).
 
 ## Implementation Sub-Phases
 
-### Sub-Phase 3.1: User Registration (`/auth/register`)
+### Sub-Phase 3.1: User Registration (`/auth/register`) ✅
 
 **Dependencies:** Database setup complete
 **Goal:** Allow users to create accounts with secure password hashing
 
 #### Tasks
 
-- Create `users` table schema (email, password_hash, role, timestamps)
-- Add auth dependencies (`bcrypt`, `jsonwebtoken`, and TypeScript typings)
-- Create `POST /auth/register` route
-- Implement `register` service function
-- Set up bcrypt for password hashing
-- Add validation for email uniqueness and password strength
-- Write unit tests for password hashing behavior
-- Write integration tests for register endpoint
+- ✅ Create `users` table schema (email, password_hash, role, timestamps) — `src/db/schema.ts`
+- ✅ Add auth dependencies (`bcrypt`, `jsonwebtoken`, and TypeScript typings)
+- ✅ Create `POST /auth/register` route — `src/index.ts`
+- ✅ Implement register logic with bcrypt password hashing
+- ✅ Add validation for required fields (email, password) — `src/utils/response.ts:validateCredentials`
+- ✅ Define auth request/response types — `src/types/api.ts`
+- ⬜ Email format and password strength validation (currently only checks presence)
+- ⬜ Unit tests for password hashing behavior
+- ⬜ Integration tests for register endpoint
 
-#### Success Criteria
+#### Notes on Implementation
 
-- Users can register with email and password
-- Passwords are hashed with bcrypt before storage
-- Duplicate emails are rejected with appropriate error
-- Response includes user object (no password_hash) and tokens
+- Register route and login route live in `src/index.ts` (not yet extracted to `src/routes/auth.ts`)
+- Auth utilities (`error`, `validateCredentials`, `generateToken`, `authSuccess`) are in `src/utils/response.ts`
+- Response shape is `{ status: "success", data: { token, user } }` — differs slightly from the planned error shape (see API Contracts below)
+- Duplicate email constraint is enforced at the DB level (throws on insert); not yet caught and returned as a friendly 409 error
 
 ---
 
-### Sub-Phase 3.2: User Login (`/auth/login`)
+### Sub-Phase 3.2: User Login (`/auth/login`) ✅
 
 **Dependencies:** Sub-Phase 3.1 complete (users table), JWT configuration
-**Goal:** Authenticate users and issue stateless JWT access/refresh tokens
+**Goal:** Authenticate users and issue stateless JWT access tokens
 
 #### Tasks
 
-- Set up JWT configuration (env var for token expiry/secret)
-- Set up JWT token generation (single long-lived token with signed payload)
-- Implement `login` service function (validate credentials)
-- Create `POST /auth/login` route
-- Write unit tests for token creation/verification
-- Write integration tests for login flow
+- ✅ JWT configuration via env vars (`JWT_SECRET`, `JWT_EXPIRES_IN`) — `src/config/env.ts`
+- ✅ JWT token generation — `src/utils/response.ts:generateToken`
+- ✅ Implement login logic (validate credentials, compare bcrypt hash)
+- ✅ Create `POST /auth/login` route — `src/index.ts`
+- ⬜ Unit tests for token creation/verification
+- ⬜ Integration tests for login flow
 
-#### Success Criteria
+#### Notes on Implementation
 
-- Users can login with valid credentials
-- Invalid credentials return consistent error messages
-- Single long-lived JWT token issued on successful login
-- Expired/invalid tokens are rejected via JWT validation
+- Invalid credentials return consistent `"Invalid email or password"` message (no user enumeration)
+- Token payload: `{ userId, email }`; expiry from `JWT_EXPIRES_IN` env var
 
 ---
 
-### Sub-Phase 3.3: Middleware & Protection
+### Sub-Phase 3.3: Middleware & Protection ⬜
 
 **Dependencies:** Sub-Phase 3.2 complete (JWT token generation)
 **Goal:** Protect routes with JWT authentication
 
 #### Tasks
 
-- Create `authenticate` middleware (validate tokens via JWT signature)
-- Create `requireRole` middleware (admin/user role guards)
-- Write tests for middleware behavior
-- Write integration tests for protected routes and role-based access
+- ⬜ Create `authenticate` middleware (`src/middleware/auth.ts`) — validate bearer tokens, attach user claims to `ctx.state`
+- ⬜ Wire auth middleware to protected routes (`/translate`, `/memory`)
+- ⬜ Unit tests for middleware behavior
+- ⬜ Integration tests for protected routes
 
 #### Success Criteria
 
 - Authenticate middleware validates bearer tokens via JWT signature and attaches user claims
 - Protected routes return 401 without valid token
-- Role guard returns 403 when user role is insufficient
 - Core unit and integration tests pass for all auth flows
 - No server-side token storage or revocation required
+
+---
+
+### Sub-Phase 3.4: Refactor & Tests ⬜
+
+**Goal:** Clean up implementation and add test coverage
+
+#### Tasks
+
+- ⬜ Extract auth routes from `src/index.ts` into `src/routes/auth.ts`
+- ⬜ Handle duplicate email DB error and return friendly 409 response
+- ⬜ Set `ctx.status = 201` on successful register
+- ⬜ Add test suite (`tests/auth.test.ts`) covering unit and integration scenarios
 
 ---
 
@@ -139,30 +150,28 @@ When designing authentication systems, there are two primary architectural appro
   - timestamps.
 - **Single token design** - one long-lived stateless JWT; no refresh token table needed
 
-### Service Layer
+### Service Layer (currently in `src/index.ts` route handlers)
 
-- `register`: create user with hashed password, issue single long-lived JWT.
-- `login`: validate credentials and issue single long-lived JWT.
+- `register`: create user with hashed password, issue single long-lived JWT. ✅
+- `login`: validate credentials and issue single long-lived JWT. ✅
 
 ### Middleware
 
-- `authenticate`: validate bearer access token and attach user claims to request context.
-- `requireRole`: enforce role-based access for admin-only endpoints.
+- `authenticate`: validate bearer access token and attach user claims to request context. ⬜ (`src/middleware/auth.ts`)
 
 ### Routes
 
-- `POST /auth/register`
-- `POST /auth/login`
+- `POST /auth/register` ✅
+- `POST /auth/login` ✅
 
 ## Security Requirements
 
-- Hash passwords with bcrypt before storage.
-- Use reasonably long-lived JWT tokens (7-30 days) for stateless authentication.
-- Never expose `password_hash` or sensitive token internals in API responses.
-- Avoid logging plaintext passwords or raw tokens.
-- Use consistent invalid-credential responses to reduce user enumeration risk.
-- Implement secure token storage guidelines for clients (httpOnly cookies or secure storage).
-- Token expiry enforced via JWT `exp` claim - no server-side revocation needed.
+- ✅ Hash passwords with bcrypt before storage.
+- ✅ Use reasonably long-lived JWT tokens (7-30 days) for stateless authentication.
+- ✅ Never expose `password_hash` in API responses.
+- ✅ Use consistent invalid-credential responses to reduce user enumeration risk.
+- ⬜ Avoid logging plaintext passwords or raw tokens (no logging in place yet).
+- ⬜ Implement secure token storage guidelines for clients (httpOnly cookies or secure storage).
 
 ## API Contracts
 
@@ -177,16 +186,18 @@ Request:
 }
 ```
 
-Success (`201`):
+Success (`201` — *currently returns 200, needs fix*):
 
 ```json
 {
-  "user": {
-    "id": 1,
-    "email": "user@example.com",
-    "role": "user"
-  },
-  "token": "<jwt>"
+  "status": "success",
+  "data": {
+    "token": "<jwt>",
+    "user": {
+      "id": 1,
+      "email": "user@example.com"
+    }
+  }
 }
 ```
 
@@ -207,12 +218,13 @@ Success (`200`): same response shape as register.
 
 ```json
 {
-  "error": {
-    "code": "AUTH_INVALID_CREDENTIALS",
-    "message": "Invalid email or password"
-  }
+  "status": "error",
+  "message": "Invalid email or password",
+  "code": 401
 }
 ```
+
+> **Note:** The original plan specified `{ "error": { "code": "...", "message": "..." } }` but the implementation uses `{ status, message, code }` — the implemented shape is used going forward.
 
 ## Test Plan
 
@@ -233,15 +245,12 @@ Success (`200`): same response shape as register.
   - 401 with invalid token,
   - 401 with expired token,
   - success with valid token.
-- Role guard behavior:
-  - 403 when role is insufficient.
 
 ## Acceptance Criteria
 
-- Auth routes are implemented and wired.
-- Passwords are never stored in plaintext.
-- Single long-lived stateless JWT token flow works end-to-end.
-- Auth middleware correctly validates JWT signatures and protects secured routes.
-- Core unit and integration tests pass for happy and failure paths.
-- `PLAN.md` points to this detailed auth phase plan.
-
+- ✅ Auth routes are implemented and wired.
+- ✅ Passwords are never stored in plaintext.
+- ✅ Single long-lived stateless JWT token flow works end-to-end.
+- ⬜ `authenticate` middleware validates JWT signatures and protects `/translate` and `/memory` routes.
+- ⬜ Core unit and integration tests pass for happy and failure paths.
+- ✅ `PLAN.md` points to this detailed auth phase plan.
